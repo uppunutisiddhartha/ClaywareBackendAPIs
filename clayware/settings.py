@@ -165,7 +165,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://clayware-frontend.vercel.app",
-    "https://claywarerestapi.onrender.com",
+    "https://claywarebackendapis.onrender.com/",
 ]
 
 
