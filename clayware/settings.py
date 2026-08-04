@@ -160,11 +160,13 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://clayware-frontend.vercel.app",
+    "https://claywaresellerprotal-one.vercel.app",
 ]
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://clayware-frontend.vercel.app",
+    "https://clayware-frontend.vercel.app",           #for user
+    "https://claywaresellerprotal-one.vercel.app",     #for seller 
     "https://claywarebackendapis.onrender.com/",
 ]
 
