@@ -61,6 +61,8 @@ class CustomUser(AbstractUser):
 
         ("marketing", "Marketing"),
 
+        ("product_reviewer", "Product Reviewer"),
+
     )
 
     STATUS_CHOICES = (

@@ -171,3 +171,24 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
 
     password = serializers.CharField(write_only=True)
+
+
+
+# ---------------------------------------------------------
+# Current Logged-in User Serializer
+# ---------------------------------------------------------
+
+class CurrentUserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CustomUser
+
+        fields = [
+            "id",
+            "name",
+            "email",
+            "phone_number",
+            "role",
+            "account_status",
+            "profile_image",
+        ]

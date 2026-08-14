@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+#from rest_framework.permissions import IsAuthenticated
 from .utils import (
     get_tracking,
     expected_delivery,
@@ -20,8 +20,9 @@ from .permissions import *
 
 
 class user_dashboard(APIView):
-    authentication_classes = [TokenAuthentication]
+    
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         pass
@@ -32,8 +33,8 @@ class user_dashboard(APIView):
 
 class AddToCartAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, id):
 
@@ -126,8 +127,8 @@ class AddToCartAPI(APIView):
 # View Cart API
 class ViewCartAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
 
@@ -268,11 +269,10 @@ class ViewCartAPI(APIView):
 
 # Remove Cart Item API
 class RemoveCartItemAPI(APIView):
-
-    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     permission_classes = [IsCustomer]
-
     def delete(self, request, id):
 
         customer = request.user
@@ -317,11 +317,12 @@ class RemoveCartItemAPI(APIView):
 
 
 class UserOrderHistoryAPI(APIView):
+   permission_classes = [IsCustomer]
+   authentication_classes = [JWTAuthentication]
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsCustomer]
+ 
 
-    def get(self, request):
+def get(self, request):
 
         orders = (
             Order.objects
@@ -484,8 +485,8 @@ class UserOrderHistoryAPI(APIView):
 
 class OrderDetailsAPIView(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, order_id):
 
@@ -662,8 +663,8 @@ class OrderDetailsAPIView(APIView):
         )
 class AddAddressAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request):
 
@@ -691,8 +692,8 @@ class AddAddressAPI(APIView):
 
 class UserAddressesAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
 

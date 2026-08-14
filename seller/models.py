@@ -12,6 +12,15 @@ class Product(models.Model):
         ('kitchen_accessories', 'Kitchen Accessories'),
         ('gifts', 'Gift Items'),
     )
+    STATUS_CHOICES = (
+    ("draft", "Draft"),
+    ("pending_verification", "Pending Verification"),
+    ("changes_required", "Changes Required"),
+    ("approved", "Approved"),
+    ("rejected", "Rejected"),
+    ("suspended", "Suspended"),
+)
+    status = models.CharField(max_length=30,choices=STATUS_CHOICES,default="draft")
 
     seller = models.ForeignKey(
         'accounts.Seller',
@@ -55,3 +64,11 @@ class ProductImage(models.Model):
         related_name="images"
     )
     image = models.ImageField(upload_to="products/")
+
+
+
+
+
+
+
+
