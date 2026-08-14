@@ -239,6 +239,8 @@ CORS_ALLOWED_ORIGINS = [
 
     # ClayWare seller portal
     "https://claywaresellerprotal-one.vercel.app",
+
+    "https://claywaresellerprotal-one.vercel.app/",
 ]
 
 
@@ -251,6 +253,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://clayware-frontend.vercel.app",
 
     "https://claywaresellerprotal-one.vercel.app",
+
+    "https://claywaresellerprotal-one.vercel.app/",
 
     "https://claywarebackendapis.onrender.com",
 ]
