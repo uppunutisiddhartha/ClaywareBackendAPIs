@@ -42,7 +42,9 @@ class HomePageView(APIView):
 
         def get(self, request):
 
-            products = Product.objects.all()
+            products = Product.objects.filter(
+    status="approved"
+)
 
             data = []
 
@@ -574,146 +576,237 @@ class CompleteRegistrationAPIView(APIView):
     # ==========================================================
     # SELLER REGISTRATION
     # ==========================================================
-
 class SellerRegisterAPIView(APIView):
-        permission_classes = [AllowAny]
 
-        @transaction.atomic
-        def post(self, request):
+    permission_classes = [AllowAny]
 
-            data = request.data
+    @transaction.atomic
+    def post(self, request):
 
-            name = data.get("name")
-            email = data.get("email")
-            phone_number = data.get("phone_number")
-            password = data.get("password")
+        data = request.data
 
-            shop_name = data.get("shop_name")
-            shop_address = data.get("shop_address")
-            gst_number = data.get("gst_number")
-            id_proof = data.get("id_proof")
+        # ======================================================
+        # GET DATA
+        # ======================================================
 
-            # ------------------------------------
-            # Validation
-            # ------------------------------------
+        name = data.get("name")
+        email = data.get("email")
+        phone_number = data.get("phone_number")
+        password = data.get("password")
 
-            if not name:
+        shop_name = data.get("shop_name")
+        shop_address = data.get("shop_address")
+        gst_number = data.get("gst_number")
+        id_proof = data.get("id_proof")
+
+        # ======================================================
+        # VALIDATION
+        # ======================================================
+
+        if not name:
+            return Response(
+                {
+                    "success": False,
+                    "field": "name",
+                    "message": "Full name is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not email:
+            return Response(
+                {
+                    "success": False,
+                    "field": "email",
+                    "message": "Email is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not phone_number:
+            return Response(
+                {
+                    "success": False,
+                    "field": "phone_number",
+                    "message": "Phone number is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not password:
+            return Response(
+                {
+                    "success": False,
+                    "field": "password",
+                    "message": "Password is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(password) < 8:
+            return Response(
+                {
+                    "success": False,
+                    "field": "password",
+                    "message": "Password must contain at least 8 characters."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not shop_name:
+            return Response(
+                {
+                    "success": False,
+                    "field": "shop_name",
+                    "message": "Shop name is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not shop_address:
+            return Response(
+                {
+                    "success": False,
+                    "field": "shop_address",
+                    "message": "Shop address is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not id_proof:
+            return Response(
+                {
+                    "success": False,
+                    "field": "id_proof",
+                    "message": "ID proof is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ======================================================
+        # DUPLICATE EMAIL
+        # ======================================================
+
+        if CustomUser.objects.filter(email=email).exists():
+
+            return Response(
+                {
+                    "success": False,
+                    "field": "email",
+                    "message": "This email is already registered."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ======================================================
+        # DUPLICATE PHONE
+        # ======================================================
+
+        if CustomUser.objects.filter(
+            phone_number=phone_number
+        ).exists():
+
+            return Response(
+                {
+                    "success": False,
+                    "field": "phone_number",
+                    "message": "This phone number is already registered."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ======================================================
+        # DUPLICATE GST
+        # ======================================================
+
+        if gst_number:
+
+            if Seller.objects.filter(
+                gst_number=gst_number
+            ).exists():
+
                 return Response(
-                    {"message": "Name is required"},
+                    {
+                        "success": False,
+                        "field": "gst_number",
+                        "message": "This GST number is already registered."
+                    },
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if not email:
-                return Response(
-                    {"message": "Email is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        # ======================================================
+        # CREATE USER
+        # ======================================================
 
-            if not phone_number:
-                return Response(
-                    {"message": "Phone number is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if not password:
-                return Response(
-                    {"message": "Password is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if not shop_name:
-                return Response(
-                    {"message": "Shop name is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if not shop_address:
-                return Response(
-                    {"message": "Shop address is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if CustomUser.objects.filter(email=email).exists():
-                return Response(
-                    {"message": "Email already exists"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if CustomUser.objects.filter(phone_number=phone_number).exists():
-                return Response(
-                    {"message": "Phone number already exists"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if gst_number:
-
-                if Seller.objects.filter(gst_number=gst_number).exists():
-
-                    return Response(
-                        {"message": "GST Number already exists"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            # ------------------------------------
-            # Create User
-            # ------------------------------------
+        try:
 
             user = CustomUser.objects.create(
-
                 name=name,
-
                 email=email,
-
                 phone_number=phone_number,
-
                 role="seller",
-
                 account_status="pending"
-
             )
 
             user.set_password(password)
-
             user.save()
 
-            # ------------------------------------
-            # Seller Profile
-            # ------------------------------------
+            # ==================================================
+            # CREATE SELLER PROFILE
+            # ==================================================
 
-            Seller.objects.create(
-
+            seller = Seller.objects.create(
                 user=user,
-
                 shop_name=shop_name,
-
                 shop_address=shop_address,
-
-                gst_number=gst_number,
-
+                gst_number=gst_number or None,
                 id_proof=id_proof
+            )
 
+        except Exception as e:
+
+            # This will appear in Django console
+            print(
+                "SELLER REGISTRATION ERROR:",
+                str(e)
             )
 
             return Response(
-
                 {
-
-                    "success": True,
-
-                    "message": "Seller registration submitted successfully.",
-
-                    "status": "pending",
-
-                    "note": "Wait for admin approval before login."
-
+                    "success": False,
+                    "message": "Unable to create seller account.",
+                    "error": str(e)
                 },
-
-                status=status.HTTP_201_CREATED
-
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+        # ======================================================
+        # SUCCESS
+        # ======================================================
 
-    # ==========================================================
+        return Response(
+            {
+                "success": True,
+
+                "message":
+                    "Seller registration submitted successfully.",
+
+                "status":
+                    "pending",
+
+                "role":
+                    "seller",
+
+                "note":
+                    "Your account is under verification. "
+                    "Please wait for admin approval."
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+     # ==========================================================
     # DELIVERY PARTNER REGISTRATION
     # ==========================================================
 
@@ -1196,3 +1289,16 @@ class LogoutAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "account_status": user.account_status,
+        })

@@ -8,7 +8,7 @@ Django 6.0.5
 from pathlib import Path
 import os
 from decouple import config
-
+from datetime import timedelta
 
 # ============================================================
 # BASE DIRECTORY
@@ -233,6 +233,9 @@ CORS_ALLOWED_ORIGINS = [
 
     # Local React development
     "http://localhost:5173",
+    "http://localhost:5174",
+
+    
 
     # ClayWare customer frontend
     "https://clayware-frontend.vercel.app",
@@ -250,7 +253,7 @@ CSRF_TRUSTED_ORIGINS = [
 
     "https://clayware-frontend.vercel.app",
 
-    "https://claywaresellerprotal-one.vercel.app/",
+    "https://claywaresellerprotal-one.vercel.app",
 
     "https://claywarebackendapis.onrender.com",
 ]
@@ -398,3 +401,18 @@ if not DEBUG:
 # ============================================================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+
+
+SIMPLE_JWT = {
+
+    "ACCESS_TOKEN_LIFETIME":
+        timedelta(minutes=30),
+
+    "REFRESH_TOKEN_LIFETIME":
+        timedelta(days=7),
+
+    "AUTH_HEADER_TYPES":
+        ("Bearer",),
+}

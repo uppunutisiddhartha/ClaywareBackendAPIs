@@ -14,7 +14,7 @@ urlpatterns = [
 
     path('admin-register/',AdminRegisterAPIView.as_view()),
 
-   # path("me/", CurrentUserView.as_view(), name="current-user"),
+   path("me/", CurrentUserView.as_view(), name="current-user"),
 
 
 
@@ -42,9 +42,9 @@ path("verify-otp/", VerifyOTPAPIView.as_view()),
 
 
 #  path(
-#         "review-team/login/",
-#         ReviewTeamLoginAPIView.as_view(),
-#         name="review-team-login"
+#        "review-team/login/",
+#        ReviewTeamLoginAPIView.as_view(),
+#        name="review-team-login"
 #     ),
 
 

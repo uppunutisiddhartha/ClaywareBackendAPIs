@@ -28,7 +28,13 @@ class CustomUserManager(BaseUserManager):
 
         return user
 
-    def create_superuser(self, email, phone_number, password=None, **extra_fields):
+    def create_superuser(
+        self,
+        email,
+        phone_number,
+        password=None,
+        **extra_fields
+    ):
 
         extra_fields.setdefault("role", "admin")
         extra_fields.setdefault("is_staff", True)
@@ -77,7 +83,9 @@ class CustomUser(AbstractUser):
 
     username = None
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(
+        max_length=100
+    )
 
     email = models.EmailField(
         unique=True,
@@ -192,8 +200,7 @@ class DeliveryPartner(models.Model):
     )
 
     vehicle_type = models.CharField(
-        max_length=20,
-        choices=VEHICLE_CHOICES
+        max_length=20
     )
 
     vehicle_number = models.CharField(
@@ -268,3 +275,37 @@ class Marketing(models.Model):
     def __str__(self):
 
         return self.user.name
+
+
+# ==========================================================
+# PRODUCT REVIEWER MANAGER
+# ==========================================================
+
+class ProductReviewerManager(models.Manager):
+
+    def get_queryset(self):
+
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                role="product_reviewer"
+            )
+        )
+
+
+# ==========================================================
+# PRODUCT REVIEW TEAM MEMBER
+# ==========================================================
+
+class ProductReviewer(CustomUser):
+
+    objects = ProductReviewerManager()
+
+    class Meta:
+
+        proxy = True
+
+        verbose_name = "Product Review Team Member"
+
+        verbose_name_plural = "Product Review Team"
