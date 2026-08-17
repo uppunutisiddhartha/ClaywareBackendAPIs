@@ -355,3 +355,115 @@ class SellerOrdersListAPI(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+from accounts.models import Seller
+from .models import Product
+
+
+class SellerProductsView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        try:
+            seller = Seller.objects.get(
+                user=request.user
+            )
+
+        except Seller.DoesNotExist:
+
+            return Response(
+                {
+                    "message": "Seller profile not found."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        products = (
+            Product.objects
+            .filter(seller=seller)
+            .prefetch_related(
+                "images",
+                "variants",
+            )
+            .order_by("-created_at")
+        )
+
+        results = []
+
+        for product in products:
+
+            images = []
+
+            for image in product.images.all():
+
+                if image.image:
+
+                    try:
+                        url = image.image.url
+                    except Exception:
+                        url = str(image.image)
+
+                    images.append(
+                        {
+                            "id": image.id,
+                            "image": url,
+                        }
+                    )
+
+            results.append(
+                {
+                    "id": product.id,
+
+                    "productname":
+                    product.productname,
+
+                    "description":
+                    product.description,
+
+                    "price":
+                    product.price,
+
+                    "discount_price":
+                    product.discount_price,
+
+                    "stock_quantity":
+                    product.stock_quantity,
+
+                    "capacity":
+                    product.capacity,
+
+                    "weight":
+                    product.weight,
+
+                    "category":
+                    product.category,
+
+                    "status":
+                    product.status,
+
+                    "images":
+                    images,
+
+                    "created_at":
+                    product.created_at,
+
+                    "updated_at":
+                    product.updated_at,
+                }
+            )
+
+        return Response(
+            {
+                "count": len(results),
+                "results": results,
+            }
+        )

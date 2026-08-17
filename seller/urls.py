@@ -8,4 +8,9 @@ urlpatterns = [
     path('delete-product/<int:id>/', DeleteProductAPI.as_view()),
     path('seller-products/', SellerProductListAPI.as_view()),
     path('seller-orders/',SellerOrdersListAPI.as_view(),name='seller-orders'),
+     path(
+        "products/",
+        SellerProductsView.as_view(),
+        name="seller-products",
+    ),
 ]

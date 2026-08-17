@@ -10,6 +10,8 @@ from rest_framework import status
 from seller.models import Product
 from accounts.models import Seller
 
+from .services import assign_product_to_reviewer
+
 from .models import (
     VerificationRequest,
     ReviewAssignment,
@@ -28,159 +30,159 @@ User = get_user_model()
 # ASSIGN PRODUCT TO REVIEWER
 # ==========================================================
 
-@transaction.atomic
-def assign_product_to_reviewer(
-    product,
-    preferred_reviewer=None,
-):
-    """
-    Create a new VerificationRequest and assign the product.
+# @transaction.atomic
+# def assign_product_to_reviewer(
+#     product,
+#     preferred_reviewer=None,
+# ):
+#     """
+#     Create a new VerificationRequest and assign the product.
 
-    Priority:
-        1. Preferred reviewer
-        2. Least-loaded active reviewer
-        3. No reviewer -> request remains pending
+#     Priority:
+#         1. Preferred reviewer
+#         2. Least-loaded active reviewer
+#         3. No reviewer -> request remains pending
 
-    IMPORTANT:
-    A completed request is NEVER reused.
+#     IMPORTANT:
+#     A completed request is NEVER reused.
 
-    Every seller resubmission creates a NEW
-    VerificationRequest + ReviewAssignment.
-    """
+#     Every seller resubmission creates a NEW
+#     VerificationRequest + ReviewAssignment.
+#     """
 
-    # ------------------------------------------------------
-    # CHECK ACTIVE REQUEST
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # CHECK ACTIVE REQUEST
+#     # ------------------------------------------------------
 
-    existing_request = (
-        VerificationRequest.objects
-        .filter(
-            product=product,
-            status__in=[
-                "pending",
-                "assigned",
-                "in_review",
-            ],
-        )
-        .order_by("-created_at", "-id")
-        .first()
-    )
+#     existing_request = (
+#         VerificationRequest.objects
+#         .filter(
+#             product=product,
+#             status__in=[
+#                 "pending",
+#                 "assigned",
+#                 "in_review",
+#             ],
+#         )
+#         .order_by("-created_at", "-id")
+#         .first()
+#     )
 
-    if existing_request:
+#     if existing_request:
 
-        assignment = (
-            ReviewAssignment.objects
-            .filter(
-                verification_request=existing_request,
-                status__in=[
-                    "assigned",
-                    "in_review",
-                ],
-            )
-            .select_related("reviewer")
-            .order_by("-assigned_at", "-id")
-            .first()
-        )
+#         assignment = (
+#             ReviewAssignment.objects
+#             .filter(
+#                 verification_request=existing_request,
+#                 status__in=[
+#                     "assigned",
+#                     "in_review",
+#                 ],
+#             )
+#             .select_related("reviewer")
+#             .order_by("-assigned_at", "-id")
+#             .first()
+#         )
 
-        return existing_request, assignment
+#         return existing_request, assignment
 
-    # ------------------------------------------------------
-    # CREATE NEW VERIFICATION REQUEST
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # CREATE NEW VERIFICATION REQUEST
+#     # ------------------------------------------------------
 
-    verification_request = (
-        VerificationRequest.objects.create(
-            product=product,
-            status="pending",
-        )
-    )
+#     verification_request = (
+#         VerificationRequest.objects.create(
+#             product=product,
+#             status="pending",
+#         )
+#     )
 
-    # ------------------------------------------------------
-    # FIND REVIEWER
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # FIND REVIEWER
+#     # ------------------------------------------------------
 
-    reviewer = None
+#     reviewer = None
 
-    # ------------------------------------------------------
-    # 1. PREFERRED REVIEWER
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # 1. PREFERRED REVIEWER
+#     # ------------------------------------------------------
 
-    if preferred_reviewer:
+#     if preferred_reviewer:
 
-        reviewer = (
-            User.objects
-            .filter(
-                id=preferred_reviewer.id,
-                role="product_reviewer",
-                account_status="active",
-            )
-            .first()
-        )
+#         reviewer = (
+#             User.objects
+#             .filter(
+#                 id=preferred_reviewer.id,
+#                 role="product_reviewer",
+#                 account_status="active",
+#             )
+#             .first()
+#         )
 
-    # ------------------------------------------------------
-    # 2. LEAST LOADED REVIEWER
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # 2. LEAST LOADED REVIEWER
+#     # ------------------------------------------------------
 
-    if reviewer is None:
+#     if reviewer is None:
 
-        reviewer = (
-            User.objects
-            .filter(
-                role="product_reviewer",
-                account_status="active",
-            )
-            .annotate(
-                pending_reviews=Count(
-                    "review_assignments",
-                    filter=Q(
-                        review_assignments__status__in=[
-                            "assigned",
-                            "in_review",
-                        ]
-                    ),
-                )
-            )
-            .order_by(
-                "pending_reviews",
-                "id",
-            )
-            .first()
-        )
+#         reviewer = (
+#             User.objects
+#             .filter(
+#                 role="product_reviewer",
+#                 account_status="active",
+#             )
+#             .annotate(
+#                 pending_reviews=Count(
+#                     "review_assignments",
+#                     filter=Q(
+#                         review_assignments__status__in=[
+#                             "assigned",
+#                             "in_review",
+#                         ]
+#                     ),
+#                 )
+#             )
+#             .order_by(
+#                 "pending_reviews",
+#                 "id",
+#             )
+#             .first()
+#         )
 
-    # ------------------------------------------------------
-    # NO REVIEWER
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # NO REVIEWER
+#     # ------------------------------------------------------
 
-    if reviewer is None:
+#     if reviewer is None:
 
-        return verification_request, None
+#         return verification_request, None
 
-    # ------------------------------------------------------
-    # CREATE ASSIGNMENT
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # CREATE ASSIGNMENT
+#     # ------------------------------------------------------
 
-    assignment = (
-        ReviewAssignment.objects.create(
-            verification_request=verification_request,
-            reviewer=reviewer,
-            status="assigned",
-        )
-    )
+#     assignment = (
+#         ReviewAssignment.objects.create(
+#             verification_request=verification_request,
+#             reviewer=reviewer,
+#             status="assigned",
+#         )
+#     )
 
-    # ------------------------------------------------------
-    # UPDATE REQUEST
-    # ------------------------------------------------------
+#     # ------------------------------------------------------
+#     # UPDATE REQUEST
+#     # ------------------------------------------------------
 
-    verification_request.status = "assigned"
+#     verification_request.status = "assigned"
 
-    verification_request.save(
-        update_fields=[
-            "status",
-            "updated_at",
-        ]
-    )
+#     verification_request.save(
+#         update_fields=[
+#             "status",
+#             "updated_at",
+#         ]
+#     )
 
-    return verification_request, assignment
+#     return verification_request, assignment
 
 
 # ==========================================================
@@ -327,11 +329,26 @@ class SubmitProductForVerificationView(APIView):
         # CREATE NEW REQUEST + ASSIGN
         # --------------------------------------------------
 
+        print(
+    "🔥 SUBMIT PRODUCT:",
+    product.id,
+    product.productname,
+    product.status,
+)
+
         verification_request, assignment = (
             assign_product_to_reviewer(
                 product=product,
                 preferred_reviewer=previous_reviewer,
             )
+        )
+
+        print(
+            "🔥 ASSIGNMENT RESULT:",
+            verification_request.id,
+            verification_request.status,
+            assignment.id if assignment else None,
+            assignment.reviewer_id if assignment else None,
         )
 
         # --------------------------------------------------
