@@ -27,7 +27,9 @@ SECRET_KEY = config("SECRET_KEY")
 # Production .env should contain DEBUG=False
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = ("claywarebackendapis.onrender.com" , "127.0.0.1:8000" )
+ALLOWED_HOSTS = ("claywarebackendapis.onrender.com" , "127.0.0.1:8000", "127.0.0.1"
+""
+ )
 #ALLOWED_HOSTS = ("*")
 
 
@@ -239,7 +241,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://clayware-frontend.vercel.app",
 
     # ClayWare seller portal
-    "https://claywaresellerprotal-one.vercel.app",
+    "https://claywares-seller-portal.vercel.app",
 
     #clayware Product REviewer  portal company internal
     "https://claywareproductreviewer.vercel.app",
@@ -254,7 +256,7 @@ CSRF_TRUSTED_ORIGINS = [
 
     "https://clayware-frontend.vercel.app",
 
-    "https://claywaresellerprotal-one.vercel.app",
+    "https://claywares-seller-portal.vercel.app/",
 
     "https://claywareproductreviewer.vercel.app",
 
