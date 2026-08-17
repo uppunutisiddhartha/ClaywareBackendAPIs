@@ -3,7 +3,7 @@ from django.db import transaction
 from django.conf import settings
 
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+#from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -13,9 +13,11 @@ from payments.models import Payment
 
 from .services import client
 
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 
 class CreateRazorpayOrderAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes =[JWTAuthentication]
 
     def post(self, request):
 
@@ -84,7 +86,7 @@ class CreateRazorpayOrderAPIView(APIView):
 
 
 class VerifyRazorpayPaymentAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes =[JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
@@ -244,7 +246,7 @@ class VerifyRazorpayPaymentAPIView(APIView):
 
 
 class PaymentFailedAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes =[JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
@@ -283,7 +285,7 @@ class PaymentFailedAPIView(APIView):
         )
 
 class RefundAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes =[JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):

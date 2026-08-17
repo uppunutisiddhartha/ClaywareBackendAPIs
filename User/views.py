@@ -33,7 +33,7 @@ class user_dashboard(APIView):
 
 class AddToCartAPI(APIView):
 
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def post(self, request, id):
@@ -127,7 +127,7 @@ class AddToCartAPI(APIView):
 # View Cart API
 class ViewCartAPI(APIView):
 
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
@@ -269,10 +269,10 @@ class ViewCartAPI(APIView):
 
 # Remove Cart Item API
 class RemoveCartItemAPI(APIView):
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
-    permission_classes = [IsCustomer]
+    
     def delete(self, request, id):
 
         customer = request.user
@@ -317,7 +317,7 @@ class RemoveCartItemAPI(APIView):
 
 
 class UserOrderHistoryAPI(APIView):
-   permission_classes = [IsCustomer]
+   #permission_classes = [IsCustomer]
    authentication_classes = [JWTAuthentication]
 
  
@@ -485,7 +485,7 @@ def get(self, request):
 
 class OrderDetailsAPIView(APIView):
 
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request, order_id):
@@ -663,7 +663,7 @@ class OrderDetailsAPIView(APIView):
         )
 class AddAddressAPI(APIView):
 
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def post(self, request):
@@ -692,7 +692,7 @@ class AddAddressAPI(APIView):
 
 class UserAddressesAPI(APIView):
 
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
