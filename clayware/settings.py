@@ -27,7 +27,7 @@ SECRET_KEY = config("SECRET_KEY")
 # Production .env should contain DEBUG=False
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = ("https://claywarebackendapis.onrender.com" , "http://127.0.0.1:8000" )
+ALLOWED_HOSTS = ("claywarebackendapis.onrender.com" , "127.0.0.1:8000" )
 #ALLOWED_HOSTS = ("*")
 
 
