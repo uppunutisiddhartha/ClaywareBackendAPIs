@@ -258,7 +258,7 @@ CSRF_TRUSTED_ORIGINS = [
 
     "https://claywares-seller-portal.vercel.app/",
 
-    "https://claywareproductreviewer.vercel.app",
+    "https://claywareproductreviewer.vercel.app/",
 
     "https://claywarebackendapis.onrender.com",
 ]
