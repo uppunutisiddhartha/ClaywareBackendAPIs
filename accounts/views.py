@@ -5,6 +5,16 @@ from django.contrib.auth import logout
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from .models import SellerPickupLocation
+from .serializers import SellerPickupLocationSerializer
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -805,6 +815,126 @@ class SellerRegisterAPIView(APIView):
         )
 
 
+
+class SellerPickupLocationAPI(APIView):
+
+    authentication_classes = [
+        JWTAuthentication
+    ]
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    # ======================================================
+    # GET PICKUP LOCATION
+    # ======================================================
+
+    def get(self, request):
+
+        try:
+
+            seller = request.user.seller_profile
+
+        except AttributeError:
+
+            return Response(
+                {
+                    "message": "Seller profile not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+
+            location = SellerPickupLocation.objects.get(
+                seller=seller
+            )
+
+        except SellerPickupLocation.DoesNotExist:
+
+            return Response(
+                {
+                    "exists": False,
+                    "message": "Pickup location not configured."
+                },
+                status=status.HTTP_200_OK
+            )
+
+        serializer = SellerPickupLocationSerializer(
+            location
+        )
+
+        return Response(
+            {
+                "exists": True,
+                "location": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    # ======================================================
+    # CREATE / UPDATE PICKUP LOCATION
+    # ======================================================
+
+    def post(self, request):
+
+        try:
+
+            seller = request.user.seller_profile
+
+        except AttributeError:
+
+            return Response(
+                {
+                    "message": "Seller profile not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        location = (
+            SellerPickupLocation.objects
+            .filter(seller=seller)
+            .first()
+        )
+
+        if location:
+
+            serializer = SellerPickupLocationSerializer(
+                location,
+                data=request.data,
+                partial=True
+            )
+
+        else:
+
+            serializer = SellerPickupLocationSerializer(
+                data=request.data
+            )
+
+        if not serializer.is_valid():
+
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        location = serializer.save(
+            seller=seller
+        )
+
+        return Response(
+            {
+                "message":
+                    "Pickup location saved successfully.",
+
+                "location":
+                    SellerPickupLocationSerializer(
+                        location
+                    ).data
+            },
+            status=status.HTTP_200_OK
+        )
 
      # ==========================================================
     # DELIVERY PARTNER REGISTRATION

@@ -47,5 +47,13 @@ path("verify-otp/", VerifyOTPAPIView.as_view()),
 #        name="review-team-login"
 #     ),
 
+path(
+        "seller/pickup-location/",
+        SellerPickupLocationAPI.as_view(),
+        name="seller-pickup-location"
+    ),
+
+    
+
 
 ]

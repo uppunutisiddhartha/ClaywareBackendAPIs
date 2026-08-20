@@ -192,3 +192,59 @@ class CurrentUserSerializer(serializers.ModelSerializer):
             "account_status",
             "profile_image",
         ]
+
+
+    from rest_framework import serializers
+from .models import SellerPickupLocation
+
+
+class SellerPickupLocationSerializer(
+    serializers.ModelSerializer
+):
+
+    class Meta:
+
+        model = SellerPickupLocation
+
+        fields = [
+            "id",
+            "contact_name",
+            "contact_phone",
+            "address",
+            "landmark",
+            "city",
+            "state",
+            "postal_code",
+            "country",
+            "latitude",
+            "longitude",
+            "is_default",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_latitude(self, value):
+
+        if value < -90 or value > 90:
+
+            raise serializers.ValidationError(
+                "Invalid latitude."
+            )
+
+        return value
+
+    def validate_longitude(self, value):
+
+        if value < -180 or value > 180:
+
+            raise serializers.ValidationError(
+                "Invalid longitude."
+            )
+
+        return value

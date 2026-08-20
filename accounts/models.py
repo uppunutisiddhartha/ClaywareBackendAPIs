@@ -176,6 +176,76 @@ class Seller(models.Model):
 
         return self.shop_name
 
+# ==========================================================
+# SELLER PICKUP LOCATION
+# ==========================================================
+
+class SellerPickupLocation(models.Model):
+
+    seller = models.OneToOneField(
+        Seller,
+        on_delete=models.CASCADE,
+        related_name="pickup_location"
+    )
+
+    contact_name = models.CharField(
+        max_length=100
+    )
+
+    contact_phone = models.CharField(
+        max_length=15
+    )
+
+    address = models.TextField()
+
+    landmark = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    city = models.CharField(
+        max_length=100
+    )
+
+    state = models.CharField(
+        max_length=100
+    )
+
+    postal_code = models.CharField(
+        max_length=20
+    )
+
+    country = models.CharField(
+        max_length=100,
+        default="India"
+    )
+
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7
+    )
+
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7
+    )
+
+    is_default = models.BooleanField(
+        default=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    def __str__(self):
+        return f"{self.seller.shop_name} - Pickup Location"
+
 
 # ==========================================================
 # DELIVERY PARTNER PROFILE
