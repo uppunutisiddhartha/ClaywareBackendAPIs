@@ -63,10 +63,16 @@ class AddToCartAPI(APIView):
                     product=product
                 )
 
-                stock = variant.stock_quantity
+                try:
+                    stock = variant.inventory.quantity
+                except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
 
             else:
-                stock = product.stock_quantity
+                try:
+                    stock = product.inventory.quantity
+                except Product.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
 
             if stock <= 0:
                 return Response(
@@ -126,18 +132,16 @@ class AddToCartAPI(APIView):
         
 # View Cart API
 class ViewCartAPI(APIView):
-
-    #permission_classes = [IsCustomer]
+    permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
-
+    
     def get(self, request):
 
-        customer = request.user
+        cart = get_object_or_404(
+            Cart,
+            user=request.user
+        )
 
-        # Get customer cart
-        cart = get_object_or_404(Cart, user=customer)
-
-        # Get cart items
         cart_items = (
             CartItem.objects
             .filter(cart=cart)
@@ -146,7 +150,9 @@ class ViewCartAPI(APIView):
                 "variant",
                 "product__seller__user"
             )
-            .prefetch_related("product__images")
+            .prefetch_related(
+                "product__images"
+            )
         )
 
         data = []
@@ -161,20 +167,28 @@ class ViewCartAPI(APIView):
             variant = item.variant
             quantity = item.quantity
 
-            # ==========================
-            # Variant Details
-            # ==========================
-
             if variant:
                 price = variant.price
                 discount_price = variant.discount_price
-                stock = variant.stock_quantity
                 capacity = variant.capacity
+
+                try:
+                    stock = variant.inventory.quantity
+                except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
+
             else:
                 price = product.price
                 discount_price = product.discount_price
-                stock = product.stock_quantity
-                capacity = None
+                capacity = product.capacity
+
+                try:
+                    stock = product.inventory.quantity
+                except Product.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
+
+            if discount_price is None:
+                discount_price = price
 
             subtotal_original = price * quantity
             subtotal_discount = discount_price * quantity
@@ -183,10 +197,6 @@ class ViewCartAPI(APIView):
             total_original_price += subtotal_original
             total_discount_price += subtotal_discount
             total_savings += savings
-
-            # ==========================
-            # Product Image
-            # ==========================
 
             product_image = None
 
@@ -197,10 +207,6 @@ class ViewCartAPI(APIView):
                     first_image.image.url
                 )
 
-            # ==========================
-            # Seller Name
-            # ==========================
-
             seller_name = None
 
             if product.seller:
@@ -210,63 +216,61 @@ class ViewCartAPI(APIView):
                     or product.seller.user.email
                 )
 
-            # ==========================
-            # Cart Data
-            # ==========================
-
             data.append({
-
                 "cart_item_id": item.id,
-
                 "product_id": product.id,
-
                 "product_name": product.productname,
-
                 "product_image": product_image,
-
                 "seller": seller_name,
 
-                "variant_id": variant.id if variant else None,
+                "variant_id": (
+                    variant.id if variant else None
+                ),
 
                 "capacity": capacity,
-
                 "weight": product.weight,
-
                 "stock": stock,
 
                 "original_price": str(price),
-
                 "discount_price": str(discount_price),
 
                 "quantity": quantity,
 
-                "subtotal_original_price": str(subtotal_original),
+                "subtotal_original_price": str(
+                    subtotal_original
+                ),
 
-                "subtotal_discount_price": str(subtotal_discount),
+                "subtotal_discount_price": str(
+                    subtotal_discount
+                ),
 
-                "you_save": str(savings)
-
+                "you_save": str(savings),
             })
 
         return Response(
             {
-
                 "message": "Cart fetched successfully",
 
                 "total_items": cart_items.count(),
 
-                "total_original_price": str(total_original_price),
+                "total_original_price": str(
+                    total_original_price
+                ),
 
-                "total_discount_price": str(total_discount_price),
+                "total_discount_price": str(
+                    total_discount_price
+                ),
 
-                "total_savings": str(total_savings),
+                "total_savings": str(
+                    total_savings
+                ),
 
-                "cart_items": data
-
+                "cart_items": data,
             },
             status=status.HTTP_200_OK
         )
 
+        
 # Remove Cart Item API
 class RemoveCartItemAPI(APIView):
     #permission_classes = [IsCustomer]

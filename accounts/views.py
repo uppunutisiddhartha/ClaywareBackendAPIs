@@ -21,7 +21,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
-from seller.models import Product
+from seller.models import Product,ProductVariant, ProductImage
+
+def get_variant_stock(variant):
+    try:
+        return variant.inventory.quantity
+    except ProductVariant.inventory.RelatedObjectDoesNotExist:
+        return 0
+
+
+def get_product_stock(product):
+    try:
+        return product.inventory.quantity
+    except Product.inventory.RelatedObjectDoesNotExist:
+        return 0
 
 
 def get_tokens_for_user(user):
@@ -46,155 +59,63 @@ from .utils import (
     # ==========================================================
     # HOME PAGE API
     # ==========================================================
-
 class HomePageView(APIView):
-        permission_classes = [AllowAny]
+    permission_classes = [AllowAny]
 
-        def get(self, request):
+    def get(self, request):
 
-            products = Product.objects.filter(
-    status="approved"
-)
+        products = Product.objects.filter(
+            status="approved"
+        ).prefetch_related("variants", "images")
 
-            data = []
+        data = []
 
-            for product in products:
+        for product in products:
 
-                variants = []
+            variants = []
 
-                for variant in product.variants.all():
+            total_stock = 0
 
-                    variants.append({
+            for variant in product.variants.all():
 
-                        "id": variant.id,
+                #total_stock += variant.stock_quantity or 0
+                try:
+                    total_stock += variant.inventory.quantity
+                except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                    total_stock += 0
+                
 
-                        "capacity": variant.capacity,
-
-                        "price": str(variant.price),
-
-                        "discount_price": str(variant.discount_price),
-
-                        "stock_quantity": variant.stock_quantity,
-
-                    })
-
-                images = []
-
-                for image in product.images.all():
-
-                    images.append({
-
-                        "id": image.id,
-
-                        "image": request.build_absolute_uri(
-                            image.image.url
-                        )
-
-                    })
-
-                main_image = images[0]["image"] if images else None
-
-                data.append({
-
-                    "id": product.id,
-
-                    "productname": product.productname,
-
-                    "description": product.description,
-
-                    "price": str(product.price),
-
-                    "discount_price": str(product.discount_price),
-
-                    "stock_quantity": product.stock_quantity,
-
-                    "weight": product.weight,
-
-                    "seller": product.seller.shop_name,
-
-                    "image": main_image,
-
-                    "images": images,
-
-                    "variants": variants,
-
+                variants.append({
+                    "id": variant.id,
+                    "capacity": variant.capacity,
+                    "price": str(variant.price),
+                    "discount_price": (
+                        str(variant.discount_price)
+                        if variant.discount_price is not None
+                        else None
+                    ),
+                   # "stock_quantity": variant.stock_quantity,
+                   "stock_quantity": (
+                        variant.inventory.quantity
+                        if hasattr(variant, "inventory")
+                        else 0
+                    ),
                 })
-
-            return Response(
-
-                {
-
-                    "total_products": products.count(),
-
-                    "products": data,
-
-                },
-
-                status=status.HTTP_200_OK,
-
-            )
-        
-
-    # ==========================================================
-    # PRODUCT DETAILS
-    # ==========================================================
-
-class ProductDetailsAPI(APIView):
-        permission_classes = [AllowAny]
-
-        def get(self, request, id):
-
-            try:
-
-                product = Product.objects.get(id=id)
-
-            except Product.DoesNotExist:
-
-                return Response(
-
-                    {
-
-                        "message": "Product not found"
-
-                    },
-
-                    status=status.HTTP_404_NOT_FOUND
-
-                )
 
             images = []
 
             for image in product.images.all():
 
-                images.append(
-
-                    request.build_absolute_uri(
-
+                images.append({
+                    "id": image.id,
+                    "image": request.build_absolute_uri(
                         image.image.url
-
                     )
-
-                )
-
-            variants = []
-
-            for variant in product.variants.all():
-
-                variants.append({
-
-                    "id": variant.id,
-
-                    "capacity": variant.capacity,
-
-                    "price": str(variant.price),
-
-                    "discount_price": str(variant.discount_price),
-
-                    "stock_quantity": variant.stock_quantity,
-
                 })
 
-            data = {
+            main_image = images[0]["image"] if images else None
+
+            data.append({
 
                 "id": product.id,
 
@@ -204,29 +125,201 @@ class ProductDetailsAPI(APIView):
 
                 "price": str(product.price),
 
-                "discount_price": str(product.discount_price),
+                "discount_price": (
+                    str(product.discount_price)
+                    if product.discount_price is not None
+                    else None
+                ),
 
-                "stock_quantity": product.stock_quantity,
+                # Stock comes from variants
+                "stock_quantity": total_stock,
 
                 "weight": product.weight,
 
+                "capacity": product.capacity,
+
+                "category": product.category,
+
                 "seller": product.seller.shop_name,
+
+                "image": main_image,
 
                 "images": images,
 
                 "variants": variants,
+            })
 
-            }
+        return Response(
+            {
+                "total_products": products.count(),
+                "products": data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
-            return Response(
+        
+    # ==========================================================
+    # PRODUCT DETAILS
+    # ==========================================================
+class ProductDetailsAPI(APIView):
 
-                data,
+    permission_classes = [AllowAny]
 
-                status=status.HTTP_200_OK
+    def get(self, request, id):
 
+        try:
+            product = (
+                Product.objects
+                .prefetch_related(
+                    "variants__inventory",
+                    "images"
+                )
+                .select_related(
+                    "seller__user"
+                )
+                .get(
+                    id=id,
+                    status="approved"
+                )
             )
 
+        except Product.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Product not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        # ==========================
+        # Product Images
+        # ==========================
+
+        images = []
+
+        for image in product.images.all():
+
+            images.append(
+                request.build_absolute_uri(
+                    image.image.url
+                )
+            )
+
+        # ==========================
+        # Variants
+        # ==========================
+
+        variants = []
+
+        total_stock = 0
+
+        for variant in product.variants.all():
+
+            try:
+                stock = variant.inventory.quantity
+
+            except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                stock = 0
+
+            total_stock += stock
+
+            variants.append({
+
+                "id": variant.id,
+
+                "capacity": variant.capacity,
+
+                "price": str(
+                    variant.price
+                ),
+
+                "discount_price": (
+                    str(variant.discount_price)
+                    if variant.discount_price is not None
+                    else None
+                ),
+
+                "stock_quantity": stock,
+
+            })
+
+        # ==========================
+        # Product Inventory
+        # ==========================
+
+        if not variants:
+
+            try:
+                total_stock = product.inventory.quantity
+
+            except Product.inventory.RelatedObjectDoesNotExist:
+                total_stock = 0
+
+        # ==========================
+        # Seller
+        # ==========================
+
+        seller_name = None
+
+        if product.seller:
+
+            seller_name = (
+                product.seller.shop_name
+            )
+
+        # ==========================
+        # Product Data
+        # ==========================
+
+        data = {
+
+            "id": product.id,
+
+            "productname":
+                product.productname,
+
+            "description":
+                product.description,
+
+            "price":
+                str(product.price),
+
+            "discount_price": (
+                str(product.discount_price)
+                if product.discount_price is not None
+                else None
+            ),
+
+            "stock_quantity":
+                total_stock,
+
+            "weight":
+                product.weight,
+
+            "capacity":
+                product.capacity,
+
+            "category":
+                product.category,
+
+            "seller":
+                seller_name,
+
+            "images":
+                images,
+
+            "variants":
+                variants,
+
+        }
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK
+        )
+
+    
     # ==========================================================
     # CHECK PHONE
     # ==========================================================
