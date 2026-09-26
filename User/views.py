@@ -321,175 +321,172 @@ class RemoveCartItemAPI(APIView):
 
 
 class UserOrderHistoryAPI(APIView):
-   #permission_classes = [IsCustomer]
+   permission_classes = [IsCustomer]
    authentication_classes = [JWTAuthentication]
+   def get(self, request):
 
- 
-
-def get(self, request):
-
-        orders = (
-            Order.objects
-            .filter(user=request.user)
-            .select_related("address")
-            .prefetch_related(
-                "items__variant",
-                "items__product__images",
-            )
-            .order_by("-created_at")
-        )
-
-        data = []
-
-        for order in orders:
-
-            payment = (
-                Payment.objects
-                .filter(order=order)
-                .first()
+            orders = (
+                Order.objects
+                .filter(user=request.user)
+                .select_related("address")
+                .prefetch_related(
+                    "items__variant",
+                    "items__product__images",
+                )
+                .order_by("-created_at")
             )
 
-            items = []
+            data = []
 
-            for item in order.items.all():
+            for order in orders:
 
-                product = item.product
-                variant = item.variant
+                payment = (
+                    Payment.objects
+                    .filter(order=order)
+                    .first()
+                )
 
-                image = None
+                items = []
 
-                first_image = product.images.first()
+                for item in order.items.all():
 
-                if first_image:
-                    image = request.build_absolute_uri(
-                        first_image.image.url
-                    )
+                    product = item.product
+                    variant = item.variant
 
-                items.append({
+                    image = None
 
-                    "product_id": product.id,
+                    first_image = product.images.first()
 
-                    "product_name": product.productname,
+                    if first_image:
+                        image = request.build_absolute_uri(
+                            first_image.image.url
+                        )
 
-                    "image": image,
+                    items.append({
 
-                    "variant": (
-                        variant.capacity
-                        if variant else "Standard"
+                        "product_id": product.id,
+
+                        "product_name": product.productname,
+
+                        "image": image,
+
+                        "variant": (
+                            variant.capacity
+                            if variant else "Standard"
+                        ),
+
+                        "quantity": item.quantity,
+
+                        "price": str(item.price),
+
+                        "subtotal": str(
+                            item.price * item.quantity
+                        ),
+
+                    })
+
+                address = None
+
+                if order.address:
+
+                    address = {
+
+                        "full_name": order.address.full_name,
+
+                        "phone_number": order.address.phone_number,
+
+                        "address_line": order.address.address_line,
+
+                        "city": order.address.city,
+
+                        "state": order.address.state,
+
+                        "pincode": order.address.pincode,
+
+                        "address_type": order.address.address_type,
+
+                    }
+
+                transaction_id = None
+                tracking_number = None
+
+                if payment and payment.transaction_id:
+                    transaction_id = payment.transaction_id
+                    tracking_number = payment.transaction_id[:12]
+
+                data.append({
+
+                    "order_id": order.id,
+
+                    "status": order.status,
+
+                    "payment_method": order.payment_method,
+
+                    "payment_status": order.payment_status,
+
+                    "refund_status": getattr(
+                        order,
+                        "refund_status",
+                        None
                     ),
 
-                    "quantity": item.quantity,
+                    "transaction_id": transaction_id,
 
-                    "price": str(item.price),
+                    "tracking_number": tracking_number,
 
-                    "subtotal": str(
-                        item.price * item.quantity
+                    "total_price": str(order.total_price),
+
+                    "created_at": order.created_at,
+
+                    "delivery_partner": "ClayWare Logistics",
+
+                    "expected_delivery": expected_delivery(order),
+
+                    "current_location": current_location(
+                        order.status
+                    ),
+
+                    "tracking": get_tracking(
+                        order.status
+                    ),
+
+                    "address": address,
+
+                    "items": items,
+
+                    "can_cancel": (
+                        order.status == "PLACED"
+                    ),
+
+                    "can_return": (
+                        order.status == "DELIVERED"
+                    ),
+
+                    "can_download_invoice": (
+                        order.status == "DELIVERED"
                     ),
 
                 })
 
-            address = None
+            return Response(
 
-            if order.address:
+                {
 
-                address = {
+                    "success": True,
 
-                    "full_name": order.address.full_name,
+                    "total_orders": orders.count(),
 
-                    "phone_number": order.address.phone_number,
+                    "orders": data,
 
-                    "address_line": order.address.address_line,
+                },
 
-                    "city": order.address.city,
+                status=status.HTTP_200_OK
 
-                    "state": order.address.state,
-
-                    "pincode": order.address.pincode,
-
-                    "address_type": order.address.address_type,
-
-                }
-
-            transaction_id = None
-            tracking_number = None
-
-            if payment and payment.transaction_id:
-                transaction_id = payment.transaction_id
-                tracking_number = payment.transaction_id[:12]
-
-            data.append({
-
-                "order_id": order.id,
-
-                "status": order.status,
-
-                "payment_method": order.payment_method,
-
-                "payment_status": order.payment_status,
-
-                "refund_status": getattr(
-                    order,
-                    "refund_status",
-                    None
-                ),
-
-                "transaction_id": transaction_id,
-
-                "tracking_number": tracking_number,
-
-                "total_price": str(order.total_price),
-
-                "created_at": order.created_at,
-
-                "delivery_partner": "ClayWare Logistics",
-
-                "expected_delivery": expected_delivery(order),
-
-                "current_location": current_location(
-                    order.status
-                ),
-
-                "tracking": get_tracking(
-                    order.status
-                ),
-
-                "address": address,
-
-                "items": items,
-
-                "can_cancel": (
-                    order.status == "PLACED"
-                ),
-
-                "can_return": (
-                    order.status == "DELIVERED"
-                ),
-
-                "can_download_invoice": (
-                    order.status == "DELIVERED"
-                ),
-
-            })
-
-        return Response(
-
-            {
-
-                "success": True,
-
-                "total_orders": orders.count(),
-
-                "orders": data,
-
-            },
-
-            status=status.HTTP_200_OK
-
-        )
+            )
 
 class OrderDetailsAPIView(APIView):
 
-    #permission_classes = [IsCustomer]
+    permission_classes = [IsCustomer]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request, order_id):

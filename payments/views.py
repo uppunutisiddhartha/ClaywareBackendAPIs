@@ -17,7 +17,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class CreateRazorpayOrderAPIView(APIView):
-    permission_classes =[JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request):
 
@@ -86,7 +86,7 @@ class CreateRazorpayOrderAPIView(APIView):
 
 
 class VerifyRazorpayPaymentAPIView(APIView):
-    permission_classes =[JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
@@ -246,7 +246,7 @@ class VerifyRazorpayPaymentAPIView(APIView):
 
 
 class PaymentFailedAPIView(APIView):
-    permission_classes =[JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
@@ -285,7 +285,7 @@ class PaymentFailedAPIView(APIView):
         )
 
 class RefundAPIView(APIView):
-    permission_classes =[JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
