@@ -383,6 +383,9 @@ TWILIO_VERIFY_SERVICE_SID = config(
 )
 
 
+
+GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
+
 # ============================================================
 # CACHE
 # ============================================================

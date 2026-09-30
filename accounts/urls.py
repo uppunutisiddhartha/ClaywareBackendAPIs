@@ -10,6 +10,12 @@ urlpatterns = [
     
     path('home-page/', HomePageView.as_view()),
 
+path(
+    "google-login/",
+    GoogleLoginAPIView.as_view(),
+    name="google-login"
+),
+
     path('product/<int:id>/', ProductDetailsAPI.as_view(), name='product-details'),
 
     path('admin-register/',AdminRegisterAPIView.as_view()),

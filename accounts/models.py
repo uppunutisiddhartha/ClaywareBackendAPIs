@@ -95,8 +95,17 @@ class CustomUser(AbstractUser):
 
     phone_number = models.CharField(
         max_length=15,
-        unique=True
+        unique=True,
+        null=True,
+        blank=True
     )
+
+    google_id = models.CharField(
+    max_length=255,
+    unique=True,
+    blank=True,
+    null=True
+)
 
     role = models.CharField(
         max_length=30,

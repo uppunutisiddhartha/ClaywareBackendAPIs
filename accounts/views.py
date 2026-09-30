@@ -5,7 +5,7 @@ from django.contrib.auth import logout
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.views import APIView
+from rest_framework.views import APIView, settings
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -14,7 +14,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import SellerPickupLocation
 from .serializers import SellerPickupLocationSerializer
-
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -675,6 +676,233 @@ class CompleteRegistrationAPIView(APIView):
                 status=status.HTTP_201_CREATED
             )
         
+
+
+class GoogleLoginAPIView(APIView):
+
+    permission_classes = []
+
+    def post(self, request):
+
+        # ==================================================
+        # GET GOOGLE CREDENTIAL
+        # ==================================================
+
+        credential = request.data.get("credential")
+
+        if not credential:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Google credential is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ==================================================
+        # VERIFY GOOGLE TOKEN
+        # ==================================================
+
+        try:
+
+            google_data = id_token.verify_oauth2_token(
+                credential,
+                requests.Request(),
+                settings.GOOGLE_CLIENT_SECRET
+            )
+
+        except ValueError:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid Google credential."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ==================================================
+        # GET GOOGLE USER DATA
+        # ==================================================
+
+        google_id = google_data.get("sub")
+
+        email = google_data.get("email")
+
+        name = google_data.get(
+            "name",
+            ""
+        )
+
+        profile_picture = google_data.get(
+            "picture"
+        )
+
+        email_verified = google_data.get(
+            "email_verified",
+            False
+        )
+
+        # ==================================================
+        # VALIDATE GOOGLE DATA
+        # ==================================================
+
+        if not google_id or not email:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Unable to get Google account details."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not email_verified:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Google email is not verified."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ==================================================
+        # GET USER MODEL
+        # ==================================================
+
+        User = get_user_model()
+
+        # ==================================================
+        # FIRST FIND USING GOOGLE ID
+        # ==================================================
+
+        user = User.objects.filter(
+            google_id=google_id
+        ).first()
+
+        # ==================================================
+        # IF NOT FOUND, FIND USING EMAIL
+        # ==================================================
+
+        if not user:
+
+            user = User.objects.filter(
+                email__iexact=email
+            ).first()
+
+        # ==================================================
+        # EXISTING USER
+        # ==================================================
+
+        if user:
+
+            # ----------------------------------------------
+            # Check account status
+            # ----------------------------------------------
+
+            if user.account_status != "active":
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Your account is not active."
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # ----------------------------------------------
+            # Attach Google account if not already attached
+            # ----------------------------------------------
+
+            update_fields = []
+
+            if not user.google_id:
+
+                user.google_id = google_id
+
+                update_fields.append(
+                    "google_id"
+                )
+
+            if not user.name and name:
+
+                user.name = name
+
+                update_fields.append(
+                    "name"
+                )
+
+            if update_fields:
+
+                user.save(
+                    update_fields=update_fields
+                )
+
+        # ==================================================
+        # CREATE NEW GOOGLE USER
+        # ==================================================
+
+        else:
+
+            user = User.objects.create(
+                email=email,
+                google_id=google_id,
+                name=name,
+                role="user",
+                account_status="active"
+            )
+
+            # Google users don't need a password.
+            user.set_unusable_password()
+
+            user.save(
+                update_fields=[
+                    "password"
+                ]
+            )
+
+        # ==================================================
+        # CREATE JWT
+        # ==================================================
+
+        refresh = RefreshToken.for_user(
+            user
+        )
+
+        access_token = refresh.access_token
+
+        # ==================================================
+        # RESPONSE
+        # ==================================================
+
+        return Response(
+            {
+                "success": True,
+                "message": "Google login successful.",
+
+                "access": str(
+                    access_token
+                ),
+
+                "refresh": str(
+                    refresh
+                ),
+
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "phone_number": user.phone_number,
+                    "role": user.role,
+                    "account_status": user.account_status,
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+    
+
 
     # ==========================================================
     # SELLER REGISTRATION
