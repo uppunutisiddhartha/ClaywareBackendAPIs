@@ -28,7 +28,13 @@ class CustomUserManager(BaseUserManager):
 
         return user
 
-    def create_superuser(self, email, phone_number, password=None, **extra_fields):
+    def create_superuser(
+        self,
+        email,
+        phone_number,
+        password=None,
+        **extra_fields
+    ):
 
         extra_fields.setdefault("role", "admin")
         extra_fields.setdefault("is_staff", True)
@@ -61,6 +67,8 @@ class CustomUser(AbstractUser):
 
         ("marketing", "Marketing"),
 
+        ("product_reviewer", "Product Reviewer"),
+
     )
 
     STATUS_CHOICES = (
@@ -75,7 +83,9 @@ class CustomUser(AbstractUser):
 
     username = None
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(
+        max_length=100
+    )
 
     email = models.EmailField(
         unique=True,
@@ -85,8 +95,17 @@ class CustomUser(AbstractUser):
 
     phone_number = models.CharField(
         max_length=15,
-        unique=True
+        unique=True,
+        null=True,
+        blank=True
     )
+
+    google_id = models.CharField(
+    max_length=255,
+    unique=True,
+    blank=True,
+    null=True
+)
 
     role = models.CharField(
         max_length=30,
@@ -166,6 +185,76 @@ class Seller(models.Model):
 
         return self.shop_name
 
+# ==========================================================
+# SELLER PICKUP LOCATION
+# ==========================================================
+
+class SellerPickupLocation(models.Model):
+
+    seller = models.OneToOneField(
+        Seller,
+        on_delete=models.CASCADE,
+        related_name="pickup_location"
+    )
+
+    contact_name = models.CharField(
+        max_length=100
+    )
+
+    contact_phone = models.CharField(
+        max_length=15
+    )
+
+    address = models.TextField()
+
+    landmark = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    city = models.CharField(
+        max_length=100
+    )
+
+    state = models.CharField(
+        max_length=100
+    )
+
+    postal_code = models.CharField(
+        max_length=20
+    )
+
+    country = models.CharField(
+        max_length=100,
+        default="India"
+    )
+
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7
+    )
+
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7
+    )
+
+    is_default = models.BooleanField(
+        default=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    def __str__(self):
+        return f"{self.seller.shop_name} - Pickup Location"
+
 
 # ==========================================================
 # DELIVERY PARTNER PROFILE
@@ -190,8 +279,7 @@ class DeliveryPartner(models.Model):
     )
 
     vehicle_type = models.CharField(
-        max_length=20,
-        choices=VEHICLE_CHOICES
+        max_length=20
     )
 
     vehicle_number = models.CharField(
@@ -266,3 +354,37 @@ class Marketing(models.Model):
     def __str__(self):
 
         return self.user.name
+
+
+# ==========================================================
+# PRODUCT REVIEWER MANAGER
+# ==========================================================
+
+class ProductReviewerManager(models.Manager):
+
+    def get_queryset(self):
+
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                role="product_reviewer"
+            )
+        )
+
+
+# ==========================================================
+# PRODUCT REVIEW TEAM MEMBER
+# ==========================================================
+
+class ProductReviewer(CustomUser):
+
+    objects = ProductReviewerManager()
+
+    class Meta:
+
+        proxy = True
+
+        verbose_name = "Product Review Team Member"
+
+        verbose_name_plural = "Product Review Team"

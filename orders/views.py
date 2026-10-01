@@ -5,13 +5,13 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from User.models import Address, Cart, CartItem
 from User.permissions import IsCustomer
 
 from .serializer import *
 
-from seller.models import Product, ProductVariant
+from seller.models import Product, ProductVariant, Inventory
 
 from .models import Order, OrderItem,Review
 from payments.models import Payment
@@ -21,8 +21,9 @@ import uuid
 
 class CheckoutAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
+    #permission_classes =[JWTAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     @transaction.atomic
     def post(self, request):
@@ -189,8 +190,8 @@ class CheckoutAPI(APIView):
                         "quantity": cart_item.quantity,
                     }
                 )
-                        # ==========================================================
-        # STOCK VALIDATION
+       # ==========================================================
+# STOCK VALIDATION
         # ==========================================================
 
         total_price = 0
@@ -200,7 +201,6 @@ class CheckoutAPI(APIView):
             qty = item["quantity"]
 
             if qty <= 0:
-
                 return Response(
                     {
                         "success": False,
@@ -209,44 +209,84 @@ class CheckoutAPI(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # -----------------------------
-            # Variant Product
-            # -----------------------------
+            # ======================================================
+            # VARIANT PRODUCT
+            # ======================================================
 
             if item["variant"]:
 
-                variant = ProductVariant.objects.select_for_update().get(
-                    id=item["variant"].id
+                variant = (
+                    ProductVariant.objects
+                    .select_for_update()
+                    .select_related("inventory", "product")
+                    .get(id=item["variant"].id)
                 )
 
-                if variant.stock_quantity < qty:
-
+                try:
+                    inventory = variant.inventory
+                except Inventory.DoesNotExist:
                     return Response(
                         {
                             "success": False,
-                            "message": f"{item['product'].productname} ({variant.capacity}) has only {variant.stock_quantity} left."
+                            "message": (
+                                f"Inventory not found for "
+                                f"{variant.product.productname} "
+                                f"({variant.capacity})."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                if inventory.quantity < qty:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": (
+                                f"{variant.product.productname} "
+                                f"({variant.capacity}) has only "
+                                f"{inventory.quantity} left."
+                            )
                         },
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
                 price = variant.discount_price or variant.price
 
-            # -----------------------------
-            # Normal Product
-            # -----------------------------
+            # ======================================================
+            # NORMAL PRODUCT
+            # ======================================================
 
             else:
 
-                product = Product.objects.select_for_update().get(
-                    id=item["product"].id
+                product = (
+                    Product.objects
+                    .select_for_update()
+                    .select_related("inventory")
+                    .get(id=item["product"].id)
                 )
 
-                if product.stock_quantity < qty:
-
+                try:
+                    inventory = product.inventory
+                except Inventory.DoesNotExist:
                     return Response(
                         {
                             "success": False,
-                            "message": f"{product.productname} has only {product.stock_quantity} left."
+                            "message": (
+                                f"Inventory not found for "
+                                f"{product.productname}."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                if inventory.quantity < qty:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": (
+                                f"{product.productname} has only "
+                                f"{inventory.quantity} left."
+                            )
                         },
                         status=status.HTTP_400_BAD_REQUEST
                     )
@@ -254,7 +294,6 @@ class CheckoutAPI(APIView):
                 price = product.discount_price or product.price
 
             total_price += price * qty
-
         # ==========================================================
         # CREATE ORDER
         # ==========================================================
@@ -340,15 +379,15 @@ class CheckoutAPI(APIView):
 
                 else:
 
-                    product = Product.objects.select_for_update().get(
-                        id=item["product"].id
-                    )
+                    inventory = Inventory.objects.select_for_update().get(
+                    product_id=item["product"].id
+                )
 
-                    product.stock_quantity -= item["quantity"]
+                inventory.quantity -= item["quantity"]
 
-                    product.save(
-                        update_fields=["stock_quantity"]
-                    )
+                inventory.save(
+                    update_fields=["quantity"]
+)
 
             # ==========================================
             # CLEAR CART (ONLY CART CHECKOUT)
@@ -415,7 +454,7 @@ class CheckoutAPI(APIView):
 
 
 class CancelOrderAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsCustomer]
 
     @transaction.atomic
@@ -542,7 +581,7 @@ class CancelOrderAPIView(APIView):
 
 class OrderSuccessAPIView(APIView):
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsCustomer]
 
     def get(self, request, order_id):
@@ -652,7 +691,7 @@ class OrderSuccessAPIView(APIView):
 
 class AddReviewAPIView(APIView):
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, product_id):
@@ -715,6 +754,9 @@ class AddReviewAPIView(APIView):
 # ==========================================
 
 class ProductReviewsAPIView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, product_id):
 

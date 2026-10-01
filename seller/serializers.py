@@ -10,6 +10,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "price",
             "discount_price",
             "stock_quantity",
+            
         ]
 
 

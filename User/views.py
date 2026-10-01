@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+#from rest_framework.permissions import IsAuthenticated
 from .utils import (
     get_tracking,
     expected_delivery,
@@ -20,8 +20,9 @@ from .permissions import *
 
 
 class user_dashboard(APIView):
-    authentication_classes = [TokenAuthentication]
+    
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         pass
@@ -32,8 +33,8 @@ class user_dashboard(APIView):
 
 class AddToCartAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, id):
 
@@ -62,10 +63,16 @@ class AddToCartAPI(APIView):
                     product=product
                 )
 
-                stock = variant.stock_quantity
+                try:
+                    stock = variant.inventory.quantity
+                except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
 
             else:
-                stock = product.stock_quantity
+                try:
+                    stock = product.inventory.quantity
+                except Product.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
 
             if stock <= 0:
                 return Response(
@@ -125,18 +132,16 @@ class AddToCartAPI(APIView):
         
 # View Cart API
 class ViewCartAPI(APIView):
-
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
-
+    authentication_classes = [JWTAuthentication]
+    
     def get(self, request):
 
-        customer = request.user
+        cart = get_object_or_404(
+            Cart,
+            user=request.user
+        )
 
-        # Get customer cart
-        cart = get_object_or_404(Cart, user=customer)
-
-        # Get cart items
         cart_items = (
             CartItem.objects
             .filter(cart=cart)
@@ -145,7 +150,9 @@ class ViewCartAPI(APIView):
                 "variant",
                 "product__seller__user"
             )
-            .prefetch_related("product__images")
+            .prefetch_related(
+                "product__images"
+            )
         )
 
         data = []
@@ -160,20 +167,28 @@ class ViewCartAPI(APIView):
             variant = item.variant
             quantity = item.quantity
 
-            # ==========================
-            # Variant Details
-            # ==========================
-
             if variant:
                 price = variant.price
                 discount_price = variant.discount_price
-                stock = variant.stock_quantity
                 capacity = variant.capacity
+
+                try:
+                    stock = variant.inventory.quantity
+                except ProductVariant.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
+
             else:
                 price = product.price
                 discount_price = product.discount_price
-                stock = product.stock_quantity
-                capacity = None
+                capacity = product.capacity
+
+                try:
+                    stock = product.inventory.quantity
+                except Product.inventory.RelatedObjectDoesNotExist:
+                    stock = 0
+
+            if discount_price is None:
+                discount_price = price
 
             subtotal_original = price * quantity
             subtotal_discount = discount_price * quantity
@@ -182,10 +197,6 @@ class ViewCartAPI(APIView):
             total_original_price += subtotal_original
             total_discount_price += subtotal_discount
             total_savings += savings
-
-            # ==========================
-            # Product Image
-            # ==========================
 
             product_image = None
 
@@ -196,10 +207,6 @@ class ViewCartAPI(APIView):
                     first_image.image.url
                 )
 
-            # ==========================
-            # Seller Name
-            # ==========================
-
             seller_name = None
 
             if product.seller:
@@ -209,70 +216,67 @@ class ViewCartAPI(APIView):
                     or product.seller.user.email
                 )
 
-            # ==========================
-            # Cart Data
-            # ==========================
-
             data.append({
-
                 "cart_item_id": item.id,
-
                 "product_id": product.id,
-
                 "product_name": product.productname,
-
                 "product_image": product_image,
-
                 "seller": seller_name,
 
-                "variant_id": variant.id if variant else None,
+                "variant_id": (
+                    variant.id if variant else None
+                ),
 
                 "capacity": capacity,
-
                 "weight": product.weight,
-
                 "stock": stock,
 
                 "original_price": str(price),
-
                 "discount_price": str(discount_price),
 
                 "quantity": quantity,
 
-                "subtotal_original_price": str(subtotal_original),
+                "subtotal_original_price": str(
+                    subtotal_original
+                ),
 
-                "subtotal_discount_price": str(subtotal_discount),
+                "subtotal_discount_price": str(
+                    subtotal_discount
+                ),
 
-                "you_save": str(savings)
-
+                "you_save": str(savings),
             })
 
         return Response(
             {
-
                 "message": "Cart fetched successfully",
 
                 "total_items": cart_items.count(),
 
-                "total_original_price": str(total_original_price),
+                "total_original_price": str(
+                    total_original_price
+                ),
 
-                "total_discount_price": str(total_discount_price),
+                "total_discount_price": str(
+                    total_discount_price
+                ),
 
-                "total_savings": str(total_savings),
+                "total_savings": str(
+                    total_savings
+                ),
 
-                "cart_items": data
-
+                "cart_items": data,
             },
             status=status.HTTP_200_OK
         )
 
+        
 # Remove Cart Item API
 class RemoveCartItemAPI(APIView):
+    #permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
-    authentication_classes = [TokenAuthentication]
-
-    permission_classes = [IsCustomer]
-
+    
     def delete(self, request, id):
 
         customer = request.user
@@ -317,175 +321,173 @@ class RemoveCartItemAPI(APIView):
 
 
 class UserOrderHistoryAPI(APIView):
+   permission_classes = [IsCustomer]
+   authentication_classes = [JWTAuthentication]
+   def get(self, request):
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsCustomer]
-
-    def get(self, request):
-
-        orders = (
-            Order.objects
-            .filter(user=request.user)
-            .select_related("address")
-            .prefetch_related(
-                "items__variant",
-                "items__product__images",
-            )
-            .order_by("-created_at")
-        )
-
-        data = []
-
-        for order in orders:
-
-            payment = (
-                Payment.objects
-                .filter(order=order)
-                .first()
+            orders = (
+                Order.objects
+                .filter(user=request.user)
+                .select_related("address")
+                .prefetch_related(
+                    "items__variant",
+                    "items__product__images",
+                )
+                .order_by("-created_at")
             )
 
-            items = []
+            data = []
 
-            for item in order.items.all():
+            for order in orders:
 
-                product = item.product
-                variant = item.variant
+                payment = (
+                    Payment.objects
+                    .filter(order=order)
+                    .first()
+                )
 
-                image = None
+                items = []
 
-                first_image = product.images.first()
+                for item in order.items.all():
 
-                if first_image:
-                    image = request.build_absolute_uri(
-                        first_image.image.url
-                    )
+                    product = item.product
+                    variant = item.variant
 
-                items.append({
+                    image = None
 
-                    "product_id": product.id,
+                    first_image = product.images.first()
 
-                    "product_name": product.productname,
+                    if first_image:
+                        image = request.build_absolute_uri(
+                            first_image.image.url
+                        )
 
-                    "image": image,
+                    items.append({
 
-                    "variant": (
-                        variant.capacity
-                        if variant else "Standard"
+                        "product_id": product.id,
+
+                        "product_name": product.productname,
+
+                        "image": image,
+
+                        "variant": (
+                            variant.capacity
+                            if variant else "Standard"
+                        ),
+
+                        "quantity": item.quantity,
+
+                        "price": str(item.price),
+
+                        "subtotal": str(
+                            item.price * item.quantity
+                        ),
+
+                    })
+
+                address = None
+
+                if order.address:
+
+                    address = {
+
+                        "full_name": order.address.full_name,
+
+                        "phone_number": order.address.phone_number,
+
+                        "address_line": order.address.address_line,
+
+                        "city": order.address.city,
+
+                        "state": order.address.state,
+
+                        "pincode": order.address.pincode,
+
+                        "address_type": order.address.address_type,
+
+                    }
+
+                transaction_id = None
+                tracking_number = None
+
+                if payment and payment.transaction_id:
+                    transaction_id = payment.transaction_id
+                    tracking_number = payment.transaction_id[:12]
+
+                data.append({
+
+                    "order_id": order.id,
+
+                    "status": order.status,
+
+                    "payment_method": order.payment_method,
+
+                    "payment_status": order.payment_status,
+
+                    "refund_status": getattr(
+                        order,
+                        "refund_status",
+                        None
                     ),
 
-                    "quantity": item.quantity,
+                    "transaction_id": transaction_id,
 
-                    "price": str(item.price),
+                    "tracking_number": tracking_number,
 
-                    "subtotal": str(
-                        item.price * item.quantity
+                    "total_price": str(order.total_price),
+
+                    "created_at": order.created_at,
+
+                    "delivery_partner": "ClayWare Logistics",
+
+                    "expected_delivery": expected_delivery(order),
+
+                    "current_location": current_location(
+                        order.status
+                    ),
+
+                    "tracking": get_tracking(
+                        order.status
+                    ),
+
+                    "address": address,
+
+                    "items": items,
+
+                    "can_cancel": (
+                        order.status == "PLACED"
+                    ),
+
+                    "can_return": (
+                        order.status == "DELIVERED"
+                    ),
+
+                    "can_download_invoice": (
+                        order.status == "DELIVERED"
                     ),
 
                 })
 
-            address = None
+            return Response(
 
-            if order.address:
+                {
 
-                address = {
+                    "success": True,
 
-                    "full_name": order.address.full_name,
+                    "total_orders": orders.count(),
 
-                    "phone_number": order.address.phone_number,
+                    "orders": data,
 
-                    "address_line": order.address.address_line,
+                },
 
-                    "city": order.address.city,
+                status=status.HTTP_200_OK
 
-                    "state": order.address.state,
-
-                    "pincode": order.address.pincode,
-
-                    "address_type": order.address.address_type,
-
-                }
-
-            transaction_id = None
-            tracking_number = None
-
-            if payment and payment.transaction_id:
-                transaction_id = payment.transaction_id
-                tracking_number = payment.transaction_id[:12]
-
-            data.append({
-
-                "order_id": order.id,
-
-                "status": order.status,
-
-                "payment_method": order.payment_method,
-
-                "payment_status": order.payment_status,
-
-                "refund_status": getattr(
-                    order,
-                    "refund_status",
-                    None
-                ),
-
-                "transaction_id": transaction_id,
-
-                "tracking_number": tracking_number,
-
-                "total_price": str(order.total_price),
-
-                "created_at": order.created_at,
-
-                "delivery_partner": "ClayWare Logistics",
-
-                "expected_delivery": expected_delivery(order),
-
-                "current_location": current_location(
-                    order.status
-                ),
-
-                "tracking": get_tracking(
-                    order.status
-                ),
-
-                "address": address,
-
-                "items": items,
-
-                "can_cancel": (
-                    order.status == "PLACED"
-                ),
-
-                "can_return": (
-                    order.status == "DELIVERED"
-                ),
-
-                "can_download_invoice": (
-                    order.status == "DELIVERED"
-                ),
-
-            })
-
-        return Response(
-
-            {
-
-                "success": True,
-
-                "total_orders": orders.count(),
-
-                "orders": data,
-
-            },
-
-            status=status.HTTP_200_OK
-
-        )
+            )
 
 class OrderDetailsAPIView(APIView):
 
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, order_id):
 
@@ -662,8 +664,8 @@ class OrderDetailsAPIView(APIView):
         )
 class AddAddressAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request):
 
@@ -691,8 +693,8 @@ class AddAddressAPI(APIView):
 
 class UserAddressesAPI(APIView):
 
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsCustomer]
+    #permission_classes = [IsCustomer]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
 
